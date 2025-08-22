@@ -36,10 +36,10 @@ awaitable<void> connect_to_remote_host(std::string_view header_response, tcp::so
         std::println("Error occured while parsing header: {}", e.what());
         co_return;
     }
-    auto addr = boost::asio::ip::make_address(host);
-    tcp::endpoint endpoint(addr, std::stoi(port));
+    tcp::resolver resolver(remote_host.get_executor());
+    auto iter = co_await resolver.async_resolve(host, port, use_awaitable);
     if (not remote_host.is_open())
-        co_await remote_host.async_connect(endpoint, use_awaitable);
+        co_await async_connect(remote_host, iter, use_awaitable);
 
     co_await async_write(remote_host, boost::asio::buffer(header_response.data(), header_response.size()), use_awaitable);
 }
