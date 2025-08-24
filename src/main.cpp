@@ -6,6 +6,7 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/read_until.hpp>
 #include <boost/asio/use_awaitable.hpp>
+#include <boost/beast.hpp>
 
 #include <string_view>
 #include <iostream>
@@ -31,7 +32,7 @@ constexpr std::string_view delimiter = "\r\n\r\n";
 awaitable<void> connect_to_remote_host(std::string_view header_response, tcp::socket &remote_host) {
     std::string host, port;
     try {
-        std::tie(host, port) = findHostPort(header_response);
+//        std::tie(host, port) = findHostPort(header_response);
     } catch (std::exception& e) {
         std::println("Error occured while parsing header: {}", e.what());
         co_return;
@@ -95,6 +96,25 @@ awaitable<void> session(tcp::socket client_socket, io_service& io_service) {
         }
     }
 }
+#include "session.h"
+awaitable<void> session2(tcp::socket client_socket, io_service& io_service) {
+//    tcp::socket remote_host(io_service);
+//    for (;;) {
+//        streambuf buf;
+//        std::size_t header_size = co_await async_read_until(client_socket, buf, delimiter, use_awaitable);
+//        auto bufs = buf.data();
+//        std::string content(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + buf.size());
+//        std::string header_request = content.substr(0, header_size);
+//
+//        co_await connect_to_remote_host(header_request, remote_host);
+//        auto remaining = co_await read_header(remote_host, client_socket);
+//        if (remaining) {
+//            co_await pipe(client_socket, remote_host, remaining.value());
+//        }
+//    }
+    class session session(io_service, std::move(client_socket));
+    co_await session.process();
+}
 
 
 class Server
@@ -112,7 +132,7 @@ private:
     {
       while(true) {
           auto socket = co_await acceptor_.async_accept(use_awaitable);
-          co_spawn(io_service_.get_executor(), session(std::move(socket), io_service_), detached);
+          co_spawn(io_service_.get_executor(), session2(std::move(socket), io_service_), detached);
       }
     }
 

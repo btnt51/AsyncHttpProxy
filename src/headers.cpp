@@ -1,4 +1,5 @@
 #include "headers.h"
+#include "session.h"
 
 #include <algorithm>
 #include <ranges>
@@ -32,26 +33,20 @@ void iterHeaders(std::string_view header, Callback&& callback) {
 
 }
 
-std::pair<std::string, std::string> findHostPort(std::string_view req) {
+HostPort findHostPort(std::string_view target) {
     try {
-        std::string host, port;
-        iterHeaders(req, [&host, &port](std::string_view field_name, std::string_view field_value) {
-            if (field_name == "Host") {
-                size_t colon_pos = field_value.find(':');
-                if (colon_pos != std::string_view::npos) {
-                    host = std::string(field_value.substr(0, colon_pos));
-                    port = std::string(field_value.substr(colon_pos + 1));
-                } else {
-                    host = std::string(field_value);
-                    port = "80";
-                }
-            }
-        });
-        return {host, port};
+        HostPort hostPort;
+        auto colon_pos = target.find(':');
+        if(colon_pos == std::string_view::npos) {
+            hostPort.host = target;
+        } else {
+            hostPort.host = std::string(target.substr(0, colon_pos));
+            hostPort.port = std::string(target.substr(colon_pos + 1));
+        }
+        return hostPort;
     } catch (std::exception& e) {
         throw;
     }
-
 }
 
 std::optional<size_t> findContentLength(std::string_view rsp) {
