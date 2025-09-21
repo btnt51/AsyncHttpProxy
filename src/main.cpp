@@ -1,7 +1,7 @@
 #include "headers.h"
 
 #include <boost/asio.hpp>
-#include <boost/asio/io_service.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/read_until.hpp>
@@ -12,7 +12,7 @@
 #include <iostream>
 #include <print>
 
-using boost::asio::io_service;
+using boost::asio::io_context;
 using boost::asio::co_spawn;
 using boost::asio::async_read_until;
 using boost::asio::async_read;
@@ -80,8 +80,8 @@ awaitable<void> pipe(tcp::socket &client_socket, tcp::socket &remote_host, std::
     }
 }
 
-awaitable<void> session(tcp::socket client_socket, io_service& io_service) {
-    tcp::socket remote_host(io_service);
+awaitable<void> session(tcp::socket client_socket, io_context& io_context) {
+    tcp::socket remote_host(io_context);
     for (;;) {
         streambuf buf;
         std::size_t header_size = co_await async_read_until(client_socket, buf, delimiter, use_awaitable);
@@ -96,9 +96,9 @@ awaitable<void> session(tcp::socket client_socket, io_service& io_service) {
         }
     }
 }
-#include "session.h"
-awaitable<void> session2(tcp::socket client_socket, io_service& io_service) {
-//    tcp::socket remote_host(io_service);
+#include "../http_lib/src/session.h"
+awaitable<void> session2(tcp::socket client_socket, io_context& io_context) {
+//    tcp::socket remote_host(io_context);
 //    for (;;) {
 //        streambuf buf;
 //        std::size_t header_size = co_await async_read_until(client_socket, buf, delimiter, use_awaitable);
@@ -112,7 +112,7 @@ awaitable<void> session2(tcp::socket client_socket, io_service& io_service) {
 //            co_await pipe(client_socket, remote_host, remaining.value());
 //        }
 //    }
-    class session session(io_service, std::move(client_socket));
+    class session session(io_context, std::move(client_socket));
     co_await session.process();
 }
 
@@ -120,11 +120,11 @@ awaitable<void> session2(tcp::socket client_socket, io_service& io_service) {
 class Server
 {
 public:
-    Server(io_service& io_service, short port)
-    : io_service_(io_service)
-    , acceptor_(io_service, tcp::endpoint(tcp::v4(), port))
+    Server(io_context& io_context, short port)
+    : io_context_(io_context)
+    , acceptor_(io_context, tcp::endpoint(tcp::v4(), port))
     {
-        co_spawn(io_service_, do_accept(), detached);
+        co_spawn(io_context_, do_accept(), detached);
     }
 
 private:
@@ -132,11 +132,11 @@ private:
     {
       while(true) {
           auto socket = co_await acceptor_.async_accept(use_awaitable);
-          co_spawn(io_service_.get_executor(), session2(std::move(socket), io_service_), detached);
+          co_spawn(io_context_.get_executor(), session2(std::move(socket), io_context_), detached);
       }
     }
 
-    io_service& io_service_;
+    io_context& io_context_;
     tcp::acceptor acceptor_;
 };
 
@@ -147,9 +147,9 @@ int main(int argc, char* argv[]) {
       std::cerr << " <listen_port>\n";
       return 1;
     }
-    io_service io_service(1);
-    Server server(io_service, std::atoi(argv[1]));
-    io_service.run();
+    io_context io_context(1);
+    Server server(io_context, std::atoi(argv[1]));
+    io_context.run();
 
   } catch (const std::exception& e) {
     std::cerr << "Exception: " << e.what() << std::endl;

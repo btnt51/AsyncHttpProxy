@@ -1,5 +1,5 @@
-#include "session.h"
-#include "headers.h"
+#include "../src/session.h"
+#include "../../src/headers.h"
 #include <iostream>
 
 boost::asio::awaitable<void> session::process() {
@@ -47,7 +47,7 @@ boost::asio::awaitable<bool> session::connect_to_remote(boost::beast::http::requ
         boost::asio::ip::tcp::resolver resolver(remote_stream_.socket().get_executor());
         auto iter = co_await resolver.async_resolve(cached_host_port.host, cached_host_port.port, boost::asio::use_awaitable);
 
-        auto [error_code_connet, _] = co_await boost::asio::async_connect(remote_stream_.socket(), iter, as_tuple(boost::asio::use_awaitable));
+        auto [error_code_connet, _] = co_await boost::asio::async_connect(remote_stream_.socket(), iter, boost::asio::as_tuple(boost::asio::use_awaitable));
         if(error_code_connet) {
             std::println(std::cerr, "Error occured while parsing header: {}", error_code_connet.what());
             co_return false;
@@ -59,7 +59,7 @@ boost::asio::awaitable<bool> session::connect_to_remote(boost::beast::http::requ
     boost::beast::http::serializer<true, boost::beast::http::empty_body> sr{req};
     sr.split(true);
 
-    auto [error_code_write, _] = co_await boost::beast::http::async_write(remote_stream_, sr,as_tuple(boost::asio::use_awaitable));
+    auto [error_code_write, _] = co_await boost::beast::http::async_write(remote_stream_, sr, boost::asio::as_tuple(boost::asio::use_awaitable));
     if(error_code_write) {
         std::println(std::cerr, "Error occured while sending header: {}", error_code_write.what());
         co_return false;
